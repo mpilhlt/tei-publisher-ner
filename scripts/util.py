@@ -23,6 +23,15 @@ def getLabelMapping(nerLabels):
                 labels[nerLabel] = key
     return labels
 
+def getLabel(label):
+    """
+    Returns the TEI Publisher label for a given NER pipeline label.
+    """
+    for key in MAPPINGS:
+        if label in MAPPINGS[key]:
+            return key
+    return None
+
 def normalize_offsets(text: str) -> List:
     """
     Normalize the text by replacing sequences of 2 or more whitespace characters
@@ -62,11 +71,13 @@ class Entity(BaseModel):
     start: int
 
 class Engine:
-    
+    """Abstraction around a named entity recognition engine"""
+
     logger: Logger
 
     def __init__(self, logger: Logger):
         self.logger = logger
     
     def process(self, model: str, text: str) -> List[Entity]:
+        """Process the text using the given model"""
         raise NotImplementedError
