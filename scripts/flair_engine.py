@@ -4,6 +4,15 @@ from flair.splitter import SegtokSentenceSplitter
 from typing import List
 from .util import Engine, Entity, adjust_offset, getLabelMapping, normalize_offsets
 
+standard_models = [
+    "ner",
+    "ner-large",
+    "ner-fast",
+    "ner-ontonotes-large",
+    "de-ner",
+    "de-ner-large"
+]
+
 class FlairEngine(Engine):
 
     def __init__(self, logger):

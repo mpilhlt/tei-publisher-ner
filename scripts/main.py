@@ -18,7 +18,7 @@ from .util import Entity, adjust_offset, getLabelMapping, normalize_offsets
 from .custom import *
 from .cache import Cache
 from .spacy_engine import SpacyEngine
-from .flair_engine import FlairEngine
+from .flair_engine import FlairEngine, standard_models as flair_models
 
 class TrainingExample(BaseModel):
     """A single training example"""
@@ -103,12 +103,15 @@ def list_models() -> List[str]:
     """Returns a list of all models installed"""
     models = []
     for pipe in spacy.info()["pipelines"]:
-        models.append(pipe)
+        models.append(f"spacy:{pipe}")
 
     localPath = Path('models')
     configs = localPath.glob("**/meta.json")
     for config in configs:
-        models.append(config.parent.relative_to(localPath))
+        models.append(f"spacy:{config.parent.relative_to(localPath)}")
+
+    for model in flair_models:
+        models.append(f"flair:{model}")
     return models
 
 @app.get("/model/{model:path}")
