@@ -14,8 +14,11 @@ import srsly
 import json
 import re
 import subprocess
+from .util import Entity, adjust_offset, getLabelMapping, normalize_offsets
 from .custom import *
 from .cache import Cache
+from .spacy_engine import SpacyEngine
+from .flair_engine import FlairEngine
 
 class TrainingExample(BaseModel):
     """A single training example"""
@@ -43,12 +46,6 @@ class PatternRequest(BaseModel):
     text: str
     patterns: List
 
-class Entity(BaseModel):
-    """A single entity"""
-    text: str
-    type: str
-    start: int
-
 FORMAT = '%(asctime)s %(message)s'
 logging.basicConfig(format=FORMAT, stream=sys.stdout, level=logging.DEBUG)
 logger = logging.getLogger()
@@ -65,79 +62,17 @@ app.add_middleware(
 cache = Cache(logger)
 processMap = {}
 
-# Mapping of NER pipeline labels to TEI Publisher labels
-MAPPINGS = {
-    "person": ("PER", "PERSON", "persName", "PRS"),
-    "place": ("LOC", "GPE", "placeName", "geogName"),
-    "organization": ("ORG", "orgName"),
-    "author": ("AUT")
+engines = {
+    "spacy": SpacyEngine(logger, cache),
+    "flair": FlairEngine(logger)
 }
 
-def getLabelMapping(nerLabels):
-    """
-    Returns a dictionary containing all pipeline entity labels which should be mapped to
-    TEI Publisher annotation labels.
-    """
-    labels = {}
-    for key in MAPPINGS:
-        for nerLabel in nerLabels:
-            if nerLabel in MAPPINGS[key]:
-                labels[nerLabel] = key
-    return labels
-
 @app.post("/entities/{model:path}")
-def ner(model: str, response: Response, text: str = Body(..., media_type="text/text")) -> List[Entity]:
+def ner(model: str, response: Response, engine: str = "spacy", text: str = Body(..., media_type="text/text")) -> List[Entity]:
     """
     Run entity recognition on the text using the given model
     """
-    nlp = cache.getModel(model)
-    if nlp is None:
-        response.status_code = 404
-        return
-    (normText, normOffsets) = normalize_offsets(text)
-    doc = nlp(normText)
-
-    labels = getLabelMapping(nlp.meta["labels"]["ner"])
-    logger.info('Extracting entities using model %s', model)
-    entities = []
-    for ent in doc.ents:
-        if ent.label_ in labels:
-            adjOffset = adjust_offset(normOffsets, ent.start_char, ent.end_char)
-            adjText = text[adjOffset[0]:adjOffset[1]]
-            entities.append(Entity(text=adjText, type=labels[ent.label_], start=adjOffset[0]))
-    return entities
-
-def adjust_offset(offsets: List, start: int, end: int) -> Tuple:
-    """
-    Recompute offsets into the normalized text to be relative to the original text.
-    """
-    i = 0
-    # computed adjusted start
-    while i < len(offsets) and offsets[i][0] < start: i += 1
-    adjStart = start if i == 0 else offsets[i - 1][1] + start
-
-    # computed adjusted end: entities may span across whitespace
-    while i < len(offsets) and offsets[i][0] < end: i += 1
-    adjEnd = end if i == 0 else offsets[i - 1][1] + end
-    return (adjStart, adjEnd)
-
-def normalize_offsets(text: str) -> List:
-    """
-    Normalize the text by replacing sequences of 2 or more whitespace characters
-    with a single space.
-
-    Returns a tuple with 1) the normalized text and 2) a list of pairs, each
-    containing a) the offset into the normalized text, b) the number of whitespace
-    characters replaced up to the current offset
-    """
-    offsets = []
-    offset = 0
-    for match in re.finditer(r"[\s\n]{2,}", text):
-        span = match.span()
-        start = span[0] - offset
-        offset += (span[1] - span[0] - 1)
-        offsets.append((start, offset))
-    return (re.sub(r"[\s\n]{2,}|\n", " ", text), offsets)
+    return engines[engine].process(model, text)
 
 @app.post("/patterns/")
 def entity_ruler(data: PatternRequest) -> List[Entity]:
