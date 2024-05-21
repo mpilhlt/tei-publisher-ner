@@ -37,7 +37,7 @@ class FlairEngine(Engine):
         sentences = splitter.split(normText)
 
         self.logger.info(f"Processing {len(sentences)} sentences ...")
-        tagger.predict(sentences)
+        tagger.predict(sentences, mini_batch_size=64, verbose=True)
         entities = []
         for sentence in sentences:
             spans = sentence.get_spans('ner')
