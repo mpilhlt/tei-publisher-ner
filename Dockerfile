@@ -1,5 +1,7 @@
 FROM python:3-slim
 
+ARG BRANCH=master
+
 RUN apt-get update && apt-get install -y git
 
 WORKDIR /workspace
@@ -7,6 +9,7 @@ WORKDIR /workspace
 # Install tei-publisher-ner plus German and English language models
 RUN git clone https://github.com/eeditiones/tei-publisher-ner.git \
     && cd tei-publisher-ner \
+    && git checkout ${BRANCH} \
     && pip3 install --no-cache-dir --upgrade -r requirements.txt \
     && python3 -m spacy download de_core_news_sm \
     && python3 -m spacy download en_core_web_sm \
