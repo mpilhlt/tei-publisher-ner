@@ -1,16 +1,24 @@
-title: "TEI Publisher NER"
-description: "TEI Publisher Named Entity Recognition API and Support Scripts"
+title: "TEI Publisher SpanCat"
+description: "TEI Publisher SpanCat API and Support Scripts"
 # Variables can be referenced across the project.yml using ${vars.var_name}
 vars:
-  name: "ner_demo"
+  name: "spancat_demo"
+
   lang: "de"
+
+
+
+
+
   version: "0.0.0"
-  model_output: "models"
   # "efficiency" or "accuracy"
-  optimize: "efficiency"
+  optimize: "accuracy"
   # Set your GPU ID, -1 is CPU
-  gpu_id: -1
-  pipeline: "de_core_news_sm"
+  gpu_id: 1
+  # Vectors model for train-with-vectors
+  vectors_model: "de_core_news_md"
+  pipeline: "de_core_news_md"
+  model_output: "models"
 
 # These are the directories that the project needs. The project CLI will make
 # sure that they always exist.
@@ -41,23 +49,23 @@ commands:
       - "corpus/dev.spacy"
 
   - name: "create-config"
-    help: "Create a new config with an NER pipeline component"
+    help: "Create a new config with a SpanCat pipeline component"
     script:
-      - "python -m spacy init config --lang ${vars.lang} --pipeline ner configs/config.cfg --force --optimize ${vars.optimize}"
+      - "python -m spacy init config --lang ${vars.lang} --pipeline spancat configs/config.cfg --force --optimize ${vars.optimize}"
     outputs:
       - "configs/config.cfg"
   
   - name: "create-config-update"
-    help: "Create a config, which updates the NER component of an existing pipeline, but keeps all other components"
+    help: "Create a config, which updates the SpanCat component of an existing pipeline, but keeps all other components"
     script:
-      - "python scripts/create-config.py ${vars.pipeline} ner configs/config.cfg"
+      - "python scripts/create-config.py ${vars.pipeline} spancat configs/config.cfg"
     deps:
       - "scripts/create-config.py"
     outputs:
       - "configs/config.cfg"
   
   - name: "train"
-    help: "Train the NER model"
+    help: "Train the SpanCat model"
     script:
       - "python -m spacy train configs/config.cfg --output ${vars.model_output}/${vars.name} --paths.train corpus/train.spacy --paths.dev corpus/dev.spacy --training.eval_frequency 10 --training.patience 50 --gpu-id ${vars.gpu_id}"
     deps:
@@ -68,7 +76,7 @@ commands:
       - "models/${vars.name}"
 
   - name: "train-with-vectors"
-    help: "Train the NER model with vectors"
+    help: "Train the SpanCat model with vectors"
     script:
       - "python -m spacy train configs/config.cfg --output ${vars.model_output}/${vars.name} --paths.train corpus/train.spacy --paths.dev corpus/dev.spacy --training.eval_frequency 10 --training.patience 50 --gpu-id ${vars.gpu_id} --initialize.vectors ${vars.pipeline} --components.tok2vec.model.embed.include_static_vectors true"
     deps:
